@@ -6,7 +6,6 @@ import (
     "log"
     "net/http"
     "os/exec"
-    "path/filepath"
     "strings"
     "time"
 
@@ -179,7 +178,6 @@ func scrapeFlipkartProduct(productURL string) (map[string]interface{}, error) {
             "--disable-extensions",
             "--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
         },
-        Binary: "/data/data/com.termux/files/usr/lib/chromium/chrome-wrapper",
     }
     caps.AddChrome(chromeCaps)
 
