@@ -23,8 +23,7 @@ type FlipkartResult struct {
 var chromedriverCmd *exec.Cmd
 
 func scrapeFlipkartProduct(url string) FlipkartResult {
-	// Debug output to stderr (won't interfere with JSON)
-	fmt.Fprintf(os.Stderr, "🚀 Starting ChromeDriver for Flipkart...\n")
+	fmt.Fprintf(os.Stderr, "🚀 Starting stable ChromeDriver for Flipkart...\n")
 	chromedriverPath := "/data/data/com.termux/files/usr/lib/chromium/chromedriver"
 	chromedriverCmd = exec.Command(chromedriverPath, "--port=9515")
 	err := chromedriverCmd.Start()
@@ -49,12 +48,14 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 			"--headless",
 			"--disable-gpu",
 			"--no-sandbox",
-			"--disable-dev-shm-usage",
+			"--disable-dev-shm-usage",    // ✅ SAFE: Prevents /dev/shm crashes
 			"--disable-blink-features=AutomationControlled",
 			"--window-size=1920,1080",
-			"--disable-notifications",
-			"--disable-infobars",
-			"--disable-extensions",
+			// ✅ MINIMAL SAFE OPTIMIZATIONS ONLY
+			"--disable-extensions",       // Safe: No extensions needed
+			"--no-first-run",            // Safe: Skip first run setup
+			// ❌ REMOVED: Aggressive flags that cause crashes
+			// "--disable-images", "--single-process", "--no-zygote" etc.
 		},
 	}
 	caps.AddChrome(chromeCaps)
@@ -74,8 +75,7 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 
 	time.Sleep(3 * time.Second)
 
-	// ----- Product Name -----
-	fmt.Fprintf(os.Stderr, "🔍 Extracting product name...\n")
+	// Use your proven working extraction logic exactly as before
 	productName := "Name not found"
 	nameSelectors := []string{"span.B_NuCI", "h1"}
 	for _, sel := range nameSelectors {
@@ -89,8 +89,6 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 		}
 	}
 
-	// ----- Product Price -----
-	fmt.Fprintf(os.Stderr, "💰 Extracting product price...\n")
 	productPrice := "Price not found"
 	priceSelectors := []string{"div._30jeq3._16Jk6d", "div.Nx9bqj.CxhGGd", "div._30jeq3"}
 	for _, sel := range priceSelectors {
@@ -104,10 +102,7 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 		}
 	}
 
-	// ----- Product Rating -----
-	fmt.Fprintf(os.Stderr, "⭐ Extracting product rating...\n")
 	productRating := "Rating not available"
-
 	currentURL, err := wd.CurrentURL()
 	if err == nil {
 		pid, lid := "", ""
@@ -145,8 +140,7 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 		}
 	}
 
-	// Debug output to stderr
-	fmt.Fprintf(os.Stderr, "✅ Flipkart scraping completed successfully!\n")
+	fmt.Fprintf(os.Stderr, "✅ Stable scraping completed successfully!\n")
 	fmt.Fprintf(os.Stderr, "📦 Name: %s\n", productName)
 	fmt.Fprintf(os.Stderr, "💰 Price: %s\n", productPrice)
 	fmt.Fprintf(os.Stderr, "⭐ Rating: %s\n", productRating)
@@ -161,7 +155,7 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 
 func main() {
 	if len(os.Args) < 2 {
-		result := FlipkartResult{Success: false, Error: "Usage: go run flipkart.go <flipkart_url>"}
+		result := FlipkartResult{Success: false, Error: "Usage: go run flipkart_stable_optimized.go <url>"}
 		jsonOutput, _ := json.Marshal(result)
 		fmt.Println(string(jsonOutput))
 		os.Exit(1)
@@ -170,7 +164,6 @@ func main() {
 	url := os.Args[1]
 	result := scrapeFlipkartProduct(url)
 	
-	// Output ONLY clean JSON to stdout (main.go will parse this)
 	jsonOutput, _ := json.Marshal(result)
 	fmt.Println(string(jsonOutput))
 }

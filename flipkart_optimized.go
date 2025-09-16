@@ -23,8 +23,7 @@ type FlipkartResult struct {
 var chromedriverCmd *exec.Cmd
 
 func scrapeFlipkartProduct(url string) FlipkartResult {
-	// Debug output to stderr (won't interfere with JSON)
-	fmt.Fprintf(os.Stderr, "🚀 Starting ChromeDriver for Flipkart...\n")
+	fmt.Fprintf(os.Stderr, "🚀 Starting OPTIMIZED ChromeDriver for Flipkart...\n")
 	chromedriverPath := "/data/data/com.termux/files/usr/lib/chromium/chromedriver"
 	chromedriverCmd = exec.Command(chromedriverPath, "--port=9515")
 	err := chromedriverCmd.Start()
@@ -52,9 +51,18 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 			"--disable-dev-shm-usage",
 			"--disable-blink-features=AutomationControlled",
 			"--window-size=1920,1080",
-			"--disable-notifications",
-			"--disable-infobars",
-			"--disable-extensions",
+			// ✅ SPEED OPTIMIZATIONS - Keep CSS but block heavy resources
+			"--disable-images",                    // Block images (major speed gain)
+			"--disable-plugins",                   // No plugins
+			"--disable-extensions",                // No extensions
+			"--no-first-run",                     // Skip setup
+			"--disable-default-apps",             // No default apps
+			"--single-process",                   // Single process mode
+			"--disable-background-timer-throttling",
+			"--disable-renderer-backgrounding",
+			"--disable-backgrounding-occluded-windows",
+			"--disable-ipc-flooding-protection",  // Faster IPC
+			"--no-zygote",                        // No zygote process
 		},
 	}
 	caps.AddChrome(chromeCaps)
@@ -145,8 +153,7 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 		}
 	}
 
-	// Debug output to stderr
-	fmt.Fprintf(os.Stderr, "✅ Flipkart scraping completed successfully!\n")
+	fmt.Fprintf(os.Stderr, "✅ Optimized Selenium scraping completed!\n")
 	fmt.Fprintf(os.Stderr, "📦 Name: %s\n", productName)
 	fmt.Fprintf(os.Stderr, "💰 Price: %s\n", productPrice)
 	fmt.Fprintf(os.Stderr, "⭐ Rating: %s\n", productRating)
@@ -161,7 +168,7 @@ func scrapeFlipkartProduct(url string) FlipkartResult {
 
 func main() {
 	if len(os.Args) < 2 {
-		result := FlipkartResult{Success: false, Error: "Usage: go run flipkart.go <flipkart_url>"}
+		result := FlipkartResult{Success: false, Error: "Usage: go run flipkart_optimized.go <url>"}
 		jsonOutput, _ := json.Marshal(result)
 		fmt.Println(string(jsonOutput))
 		os.Exit(1)
@@ -170,7 +177,6 @@ func main() {
 	url := os.Args[1]
 	result := scrapeFlipkartProduct(url)
 	
-	// Output ONLY clean JSON to stdout (main.go will parse this)
 	jsonOutput, _ := json.Marshal(result)
 	fmt.Println(string(jsonOutput))
 }
