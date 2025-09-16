@@ -8,9 +8,6 @@ import (
     "os/exec"
     "strings"
     "time"
-
-    "github.com/tebeka/selenium"
-    "github.com/tebeka/selenium/chrome"
 )
 
 type HealthResponse struct {
@@ -28,18 +25,16 @@ type ScrapeResponse struct {
     Debug       []string    `json:"debug,omitempty"`
 }
 
-var chromedriverCmd *exec.Cmd
-
 func main() {
     http.HandleFunc("/health", handleHealth)
     http.HandleFunc("/scrape", handleScrape)
 
     port := ":8080"
-    fmt.Println("🚀 Go Scraper Service v2.0 Started (Hybrid)")
+    fmt.Println("🚀 Go Scraper Service v2.0 Started (Optimal Hybrid)")
     fmt.Println("📅 Service running on port 8080")
-    fmt.Println("🛒 Flipkart scraping: Go ChromeDriver (4-6s)")
-    fmt.Println("📦 Amazon scraping: Python requests (2-3s)")
-    fmt.Println("🔍 Optimized for speed and reliability")
+    fmt.Println("🛒 Flipkart scraping: Go ChromeDriver (flipkart.go)")
+    fmt.Println("📦 Amazon scraping: Python requests (amazon.py)")
+    fmt.Println("⚡ Best performance for each platform!")
 
     log.Fatal(http.ListenAndServe(port, nil))
 }
@@ -49,8 +44,8 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 
     response := HealthResponse{
         Status:    "ok",
-        Service:   "Hybrid Go+Python Scraper Service (Flipkart+Amazon)",
-        Version:   "2.0-hybrid",
+        Service:   "Optimal Hybrid Scraper Service (Go+Python)",
+        Version:   "2.0-optimal-fixed",
         Timestamp: time.Now().Format("2006-01-02 15:04:05 IST"),
     }
 
@@ -84,13 +79,13 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 
         response := ScrapeResponse{
             Success: true,
-            Message: fmt.Sprintf("🚀 Hello from Hybrid Scraper Service v2.0! Chat ID: %s User: @%s ⚡ Ultra Fast Performance - Flipkart: Go ChromeDriver, Amazon: Python requests!", chatID, username),
+            Message: fmt.Sprintf("🚀 Hello from Optimal Hybrid Scraper v2.0! Chat ID: %s User: @%s ⚡ Flipkart: Go ChromeDriver, Amazon: Python requests - FIXED!", chatID, username),
             ProductInfo: map[string]interface{}{
-                "title":     "Hybrid Scraper Service (Flipkart + Amazon)",
+                "title":     "Optimal Hybrid Scraper Service - FIXED",
                 "price":     "Active & Ultra Fast",
                 "timestamp": time.Now().Format("2006-01-02 15:04:05 IST"),
             },
-            Debug: []string{"Hybrid service running on port 8080", "Flipkart: Go ChromeDriver", "Amazon: Python requests"},
+            Debug: []string{"Service running on port 8080", "Flipkart: flipkart.go", "Amazon: amazon.py", "JSON parsing FIXED"},
         }
 
         w.Header().Set("Content-Type", "application/json")
@@ -99,9 +94,9 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
     }
 
     if strings.Contains(url, "flipkart.com") {
-        fmt.Println("🛒 Flipkart URL detected - using Go ChromeDriver...")
+        fmt.Println("🛒 Flipkart URL detected - using flipkart.go...")
 
-        productInfo, err := scrapeFlipkartProduct(url)
+        productInfo, err := scrapeFlipkartViaGo(url)
         if err != nil {
             fmt.Printf("❌ Flipkart scraping failed: %v\n", err)
             response := ScrapeResponse{
@@ -124,7 +119,7 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 💰 Price: %s
 ⭐ Rating: %s
 
-🔧 Scraped with: Go ChromeDriver`, productInfo["name"], productInfo["price"], productInfo["rating"]),
+🔧 Scraped with: Go ChromeDriver (flipkart.go)`, productInfo["name"], productInfo["price"], productInfo["rating"]),
             ProductInfo: productInfo,
             Debug: []string{"Flipkart product scraped with Go ChromeDriver"},
         }
@@ -135,9 +130,9 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
     }
 
     if strings.Contains(url, "amazon.") {
-        fmt.Println("📦 Amazon URL detected - using Python requests...")
+        fmt.Println("📦 Amazon URL detected - using amazon.py...")
 
-        productInfo, err := scrapeAmazonProduct(url)
+        productInfo, err := scrapeAmazonViaPython(url)
         if err != nil {
             fmt.Printf("❌ Amazon scraping failed: %v\n", err)
             response := ScrapeResponse{
@@ -163,7 +158,7 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 ⭐ Rating: %s
 📦 Availability: %s
 
-🔧 Scraped with: Python requests`, productInfo["title"], productInfo["price"], productInfo["mrp"], productInfo["discount"], productInfo["rating"], productInfo["availability"]),
+🔧 Scraped with: Python requests (amazon.py)`, productInfo["title"], productInfo["price"], productInfo["mrp"], productInfo["discount"], productInfo["rating"], productInfo["availability"]),
             ProductInfo: productInfo,
             Debug: []string{"Amazon product scraped with Python requests"},
         }
@@ -178,7 +173,7 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
     response := ScrapeResponse{
         Success: false,
         Error:   "Send a Flipkart or Amazon product URL or 'go' command to test the service",
-        Message: fmt.Sprintf("Hybrid Scraper Service v2.0 - Received: %s", command),
+        Message: fmt.Sprintf("Optimal Hybrid Scraper Service v2.0 - Received: %s", command),
         Debug:   []string{fmt.Sprintf("Service running at %s", time.Now().Format("2006-01-02 15:04:05 IST"))},
     }
 
@@ -186,18 +181,66 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
     json.NewEncoder(w).Encode(response)
 }
 
-func scrapeAmazonProduct(productURL string) (map[string]string, error) {
-    fmt.Println("📦 Starting Amazon scraping with Python...")
+func scrapeFlipkartViaGo(productURL string) (map[string]string, error) {
+    fmt.Println("🛒 Starting Flipkart scraping via Go script...")
+    
+    // Path to Go script (run it)
+    flipkartScript := "/data/data/com.termux/files/home/termux-scraper-service/flipkart.go"
+    
+    // Call Go script via exec
+    cmd := exec.Command("go", "run", flipkartScript, productURL)
+    
+    // ✅ FIXED: Use Output() instead of CombinedOutput() to get only stdout (clean JSON)
+    output, err := cmd.Output()
+    if err != nil {
+        return nil, fmt.Errorf("Go script failed: %v", err)
+    }
+    
+    // Parse JSON output from Go script
+    var result struct {
+        Success bool   `json:"success"`
+        Name    string `json:"name"`
+        Price   string `json:"price"`
+        Rating  string `json:"rating"`
+        Error   string `json:"error"`
+    }
+    
+    if err := json.Unmarshal(output, &result); err != nil {
+        return nil, fmt.Errorf("failed to parse Go output: %v, raw output: %s", err, string(output))
+    }
+    
+    if !result.Success {
+        return nil, fmt.Errorf("Go scraping failed: %s", result.Error)
+    }
+    
+    // Convert to map format expected by your system
+    product := map[string]string{
+        "name":   result.Name,
+        "price":  result.Price,
+        "rating": result.Rating,
+    }
+    
+    fmt.Println("✅ Flipkart product extraction completed via Go!")
+    fmt.Printf("📦 Name: %s\n", product["name"])
+    fmt.Printf("💰 Price: %s\n", product["price"])
+    fmt.Printf("⭐ Rating: %s\n", product["rating"])
+    
+    return product, nil
+}
+
+func scrapeAmazonViaPython(productURL string) (map[string]string, error) {
+    fmt.Println("📦 Starting Amazon scraping via Python script...")
     
     // Path to Python script
-    pythonScript := "/data/data/com.termux/files/home/termux-scraper-service/amazon_scraper.py"
+    pythonScript := "/data/data/com.termux/files/home/termux-scraper-service/amazon.py"
     
     // Call Python script via exec
-    cmd := exec.Command("python3", pythonScript, "--url", productURL)
+    cmd := exec.Command("python3", pythonScript, productURL)
     
-    output, err := cmd.CombinedOutput()
+    // ✅ FIXED: Use Output() instead of CombinedOutput() to get only stdout (clean JSON)
+    output, err := cmd.Output()
     if err != nil {
-        return nil, fmt.Errorf("Python script failed: %v, output: %s", err, string(output))
+        return nil, fmt.Errorf("Python script failed: %v", err)
     }
     
     // Parse JSON output from Python script
@@ -239,113 +282,4 @@ func scrapeAmazonProduct(productURL string) (map[string]string, error) {
     fmt.Printf("📦 Availability: %s\n", product["availability"])
     
     return product, nil
-}
-
-func scrapeFlipkartProduct(productURL string) (map[string]interface{}, error) {
-    fmt.Println("🚀 Starting ChromeDriver for Flipkart...")
-    chromedriverPath := "/data/data/com.termux/files/usr/lib/chromium/chromedriver"
-    chromedriverCmd = exec.Command(chromedriverPath, "--port=9515")
-    err := chromedriverCmd.Start()
-    if err != nil {
-        return nil, fmt.Errorf("failed to start ChromeDriver: %v", err)
-    }
-
-    fmt.Println("⏳ ChromeDriver started, waiting...")
-    time.Sleep(3 * time.Second)
-
-    defer func() {
-        if chromedriverCmd != nil && chromedriverCmd.Process != nil {
-            chromedriverCmd.Process.Kill()
-        }
-    }()
-
-    fmt.Println("🌐 Connecting to ChromeDriver...")
-
-    caps := selenium.Capabilities{"browserName": "chrome"}
-    chromeCaps := chrome.Capabilities{
-        Args: []string{
-            "--headless",
-            "--disable-gpu",
-            "--no-sandbox",
-            "--disable-dev-shm-usage",
-            "--disable-blink-features=AutomationControlled",
-            "--window-size=1920,1080",
-            "--disable-notifications",
-            "--disable-infobars",
-            "--disable-extensions",
-            "--user-agent=Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36",
-        },
-    }
-    caps.AddChrome(chromeCaps)
-
-    wd, err := selenium.NewRemote(caps, "http://localhost:9515")
-    if err != nil {
-        return nil, fmt.Errorf("failed to open Chrome session: %v", err)
-    }
-    defer wd.Quit()
-
-    fmt.Println("✅ Connected successfully")
-
-    fmt.Printf("📄 Loading Flipkart page: %s\n", productURL)
-    if err := wd.Get(productURL); err != nil {
-        return nil, fmt.Errorf("failed to load page: %v", err)
-    }
-
-    time.Sleep(3 * time.Second)
-
-    result := make(map[string]interface{})
-
-    fmt.Println("🔍 Extracting product name...")
-    productName := "Name not found"
-    nameSelectors := []string{"span.B_NuCI", "h1", "span._35KyD6"}
-    for _, sel := range nameSelectors {
-        elem, err := wd.FindElement(selenium.ByCSSSelector, sel)
-        if err == nil {
-            name, _ := elem.Text()
-            if name != "" {
-                productName = strings.TrimSpace(name)
-                break
-            }
-        }
-    }
-    result["name"] = productName
-
-    fmt.Println("💰 Extracting product price...")
-    productPrice := "Price not found"
-    priceSelectors := []string{"div._30jeq3._16Jk6d", "div.Nx9bqj.CxhGGd", "div._30jeq3", "div._1_WHN1"}
-    for _, sel := range priceSelectors {
-        elem, err := wd.FindElement(selenium.ByCSSSelector, sel)
-        if err == nil {
-            price, _ := elem.Text()
-            if price != "" {
-                productPrice = strings.TrimSpace(price)
-                break
-            }
-        }
-    }
-    result["price"] = productPrice
-
-    fmt.Println("⭐ Extracting product rating...")
-    productRating := "Rating not available"
-
-    ratingSelectors := []string{"div._3LWZlK", "div._1lRcqv", "span._1lRcqv", "div.gUuXy-"}
-    for _, sel := range ratingSelectors {
-        elem, err := wd.FindElement(selenium.ByCSSSelector, sel)
-        if err == nil {
-            rating, _ := elem.Text()
-            if rating != "" {
-                productRating = strings.TrimSpace(rating)
-                break
-            }
-        }
-    }
-
-    result["rating"] = productRating
-
-    fmt.Println("✅ Product information extracted successfully!")
-    fmt.Printf("📦 Name: %s\n", productName)
-    fmt.Printf("💰 Price: %s\n", productPrice)
-    fmt.Printf("⭐ Rating: %s\n", productRating)
-
-    return result, nil
 }
