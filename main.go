@@ -1,260 +1,310 @@
 package main
 
 import (
-    "encoding/json"
-    "fmt"
-    "log"
-    "net/http"
-    "os/exec"
-    "strings"
-    "time"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
+	"os/exec"
+	"strings"
+	"sync"
+	"time"
 )
 
 type HealthResponse struct {
-    Status    string `json:"status"`
-    Service   string `json:"service"`
-    Version   string `json:"version"`
-    Timestamp string `json:"timestamp"`
+	Status    string `json:"status"`
+	Service   string `json:"service"`
+	Version   string `json:"version"`
+	Timestamp string `json:"timestamp"`
 }
 
 type ScrapeResponse struct {
-    Success     bool        `json:"success"`
-    Message     string      `json:"message"`
-    ProductInfo interface{} `json:"product_info,omitempty"`
-    Error       string      `json:"error,omitempty"`
-    Debug       []string    `json:"debug,omitempty"`
+	Success     bool        `json:"success"`
+	Message     string      `json:"message"`
+	ProductInfo interface{} `json:"product_info,omitempty"`
+	Error       string      `json:"error,omitempty"`
+	Debug       []string    `json:"debug,omitempty"`
+	Timing      TimingInfo  `json:"timing,omitempty"`
 }
 
+type TimingInfo struct {
+	StartTime     string `json:"start_time"`
+	EndTime       string `json:"end_time"`
+	Duration      string `json:"duration"`
+	ScrapingMethod string `json:"scraping_method"`
+	ConcurrentRequests int `json:"concurrent_requests"`
+	RequestID     string `json:"request_id"`
+}
+
+var (
+	requestCounter int
+	requestMutex   sync.Mutex
+	activeRequests = make(map[string]time.Time)
+)
+
 func main() {
-    http.HandleFunc("/health", handleHealth)
-    http.HandleFunc("/scrape", handleScrape)
+	http.HandleFunc("/health", handleHealth)
+	http.HandleFunc("/scrape", handleScrape)
 
-    port := ":8080"
-    fmt.Println("🚀 Go Scraper Service v2.0 Started (Optimal Hybrid)")
-    fmt.Println("📅 Service running on port 8080")
-    fmt.Println("🛒 Flipkart scraping: Go ChromeDriver (flipkart.go)")
-    fmt.Println("📦 Amazon scraping: Python requests (amazon.py)")
-    fmt.Println("⚡ Best performance for each platform!")
+	port := ":8080"
+	fmt.Println("🚀 Go Scraper Service v2.1 Started (Parallel Processing Monitor)")
+	fmt.Println("📅 Service running on port 8080")
+	fmt.Println("🛒 Flipkart scraping: Go ChromeDriver (flipkart.go)")
+	fmt.Println("📦 Amazon scraping: FastAPI (amazon_api.py)")
+	fmt.Println("⚡ Parallel processing monitoring ENABLED!")
 
-    log.Fatal(http.ListenAndServe(port, nil))
+	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 func handleHealth(w http.ResponseWriter, r *http.Request) {
-    fmt.Println("💚 Health check requested")
+	fmt.Println("💚 Health check requested")
 
-    response := HealthResponse{
-        Status:    "ok",
-        Service:   "Optimal Hybrid Scraper Service (Go+Python)",
-        Version:   "2.0-optimal-fixed",
-        Timestamp: time.Now().Format("2006-01-02 15:04:05 IST"),
-    }
+	response := HealthResponse{
+		Status:    "ok",
+		Service:   "Parallel Processing Monitor Service (Go+FastAPI)",
+		Version:   "2.1-parallel-monitor",
+		Timestamp: time.Now().Format("2006-01-02 15:04:05 IST"),
+	}
 
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func handleScrape(w http.ResponseWriter, r *http.Request) {
-    if r.Method != "POST" {
-        fmt.Println("❌ Invalid method:", r.Method)
-        http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-        return
-    }
+	startTime := time.Now()
+	
+	// Generate unique request ID
+	requestMutex.Lock()
+	requestCounter++
+	requestID := fmt.Sprintf("REQ_%d_%d", requestCounter, startTime.Unix())
+	activeRequests[requestID] = startTime
+	concurrentCount := len(activeRequests)
+	requestMutex.Unlock()
 
-    var requestData map[string]interface{}
-    if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-        fmt.Println("❌ Bad request body:", err)
-        http.Error(w, "Bad request", http.StatusBadRequest)
-        return
-    }
+	defer func() {
+		requestMutex.Lock()
+		delete(activeRequests, requestID)
+		requestMutex.Unlock()
+	}()
 
-    command, _ := requestData["command"].(string)
-    url, _ := requestData["url"].(string)
-    chatID, _ := requestData["chat_id"].(string)
-    username, _ := requestData["username"].(string)
+	fmt.Printf("🔥 [%s] NEW REQUEST - Concurrent requests: %d\n", requestID, concurrentCount)
 
-    fmt.Printf("🤖 Scrape request: command='%s', user='%s', chatID='%s'\n", command, username, chatID)
+	if r.Method != "POST" {
+		fmt.Printf("❌ [%s] Invalid method: %s\n", requestID, r.Method)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-    if command == "go" || url == "go" {
-        fmt.Println("⚡ Processing 'go' command - sending ultra-fast response!")
+	var requestData map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
+		fmt.Printf("❌ [%s] Bad request body: %v\n", requestID, err)
+		http.Error(w, "Bad request", http.StatusBadRequest)
+		return
+	}
 
-        response := ScrapeResponse{
-            Success: true,
-            Message: fmt.Sprintf("🚀 Hello from Optimal Hybrid Scraper v2.0! Chat ID: %s User: @%s ⚡ Flipkart: Go ChromeDriver, Amazon: Python requests - FIXED!", chatID, username),
-            ProductInfo: map[string]interface{}{
-                "title":     "Optimal Hybrid Scraper Service - FIXED",
-                "price":     "Active & Ultra Fast",
-                "timestamp": time.Now().Format("2006-01-02 15:04:05 IST"),
-            },
-            Debug: []string{"Service running on port 8080", "Flipkart: flipkart.go", "Amazon: amazon.py", "JSON parsing FIXED"},
-        }
+	command, _ := requestData["command"].(string)
+	url, _ := requestData["url"].(string)
+	chatID, _ := requestData["chat_id"].(string)
+	username, _ := requestData["username"].(string)
 
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-        return
-    }
+	fmt.Printf("🤖 [%s] Scrape request: user='%s', chat='%s', concurrent=%d\n", requestID, username, chatID, concurrentCount)
 
-    // Route to Flipkart scraper (no URL validation - trust worker.js)
-    if strings.Contains(url, "flipkart.com") || strings.Contains(url, "dl.flipkart.com") {
-        fmt.Println("🛒 Flipkart URL detected - using flipkart.go...")
+	if command == "go" || url == "go" {
+		fmt.Printf("⚡ [%s] Processing 'go' command\n", requestID)
 
-        productInfo, err := scrapeFlipkartViaGo(url)
-        if err != nil {
-            fmt.Printf("❌ Flipkart scraping failed: %v\n", err)
-            response := ScrapeResponse{
-                Success: false,
-                Error:   fmt.Sprintf("Flipkart scraping failed: %v", err),
-                Message: "Could not extract product information",
-            }
-            w.Header().Set("Content-Type", "application/json")
-            json.NewEncoder(w).Encode(response)
-            return
-        }
+		duration := time.Since(startTime)
+		timing := TimingInfo{
+			StartTime:          startTime.Format("15:04:05.000"),
+			EndTime:            time.Now().Format("15:04:05.000"),
+			Duration:           duration.String(),
+			ScrapingMethod:     "Go Service Test",
+			ConcurrentRequests: concurrentCount,
+			RequestID:          requestID,
+		}
 
-        fmt.Printf("✅ Flipkart product scraped successfully: %s\n", productInfo["name"])
+		response := ScrapeResponse{
+			Success: true,
+			Message: fmt.Sprintf("🚀 Parallel Processing Monitor v2.1!\n⚡ FastAPI ENABLED\n🔥 Request ID: %s\n📊 Concurrent: %d requests\n⏱️ Response time: %s", 
+				requestID, concurrentCount, duration),
+			ProductInfo: map[string]interface{}{
+				"title":     "Parallel Processing Monitor - ACTIVE",
+				"price":     fmt.Sprintf("Response in %s", duration),
+				"timestamp": time.Now().Format("2006-01-02 15:04:05 IST"),
+			},
+			Debug: []string{
+				fmt.Sprintf("Request ID: %s", requestID),
+				fmt.Sprintf("Concurrent requests: %d", concurrentCount),
+				"FastAPI enabled for Amazon",
+				"Go ChromeDriver for Flipkart",
+			},
+			Timing: timing,
+		}
 
-        response := ScrapeResponse{
-            Success: true,
-            Message: fmt.Sprintf(`🛒 Flipkart Product Found!
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
-📱 Name: %s
-💰 Price: %s
-⭐ Rating: %s
+	var scrapingMethod string
+	var productInfo map[string]string
+	var err error
 
-🔧 Scraped with: Go ChromeDriver (flipkart.go)`, productInfo["name"], productInfo["price"], productInfo["rating"]),
-            ProductInfo: productInfo,
-            Debug: []string{"Flipkart product scraped with Go ChromeDriver"},
-        }
+	if strings.Contains(url, "flipkart.com") || strings.Contains(url, "dl.flipkart.com") {
+		fmt.Printf("🛒 [%s] Flipkart URL detected - using Go ChromeDriver\n", requestID)
+		scrapingMethod = "Go ChromeDriver (flipkart.go)"
+		productInfo, err = scrapeFlipkartViaGo(url, requestID)
+	} else {
+		fmt.Printf("📦 [%s] Amazon URL assumed - using FastAPI\n", requestID)
+		scrapingMethod = "FastAPI (amazon_api.py)"
+		productInfo, err = scrapeAmazonViaFastAPI(url, requestID)
+	}
 
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-        return
-    }
+	endTime := time.Now()
+	duration := endTime.Sub(startTime)
 
-    // Default to Amazon scraper for all other URLs (no validation - trust worker.js)
-    fmt.Println("📦 Amazon URL assumed - using amazon.py...")
+	timing := TimingInfo{
+		StartTime:          startTime.Format("15:04:05.000"),
+		EndTime:            endTime.Format("15:04:05.000"),
+		Duration:           duration.String(),
+		ScrapingMethod:     scrapingMethod,
+		ConcurrentRequests: concurrentCount,
+		RequestID:          requestID,
+	}
 
-    productInfo, err := scrapeAmazonViaPython(url)
-    if err != nil {
-        fmt.Printf("❌ Amazon scraping failed: %v\n", err)
-        response := ScrapeResponse{
-            Success: false,
-            Error:   fmt.Sprintf("Amazon scraping failed: %v", err),
-            Message: "Could not extract product information",
-        }
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-        return
-    }
+	fmt.Printf("✅ [%s] COMPLETED in %s - Concurrent was: %d\n", requestID, duration, concurrentCount)
 
-    fmt.Printf("✅ Amazon product scraped successfully: %s\n", productInfo["title"])
+	if err != nil {
+		fmt.Printf("❌ [%s] Scraping failed: %v\n", requestID, err)
+		response := ScrapeResponse{
+			Success: false,
+			Error:   fmt.Sprintf("Scraping failed: %v", err),
+			Message: fmt.Sprintf("❌ Request failed\n🔍 Method: %s\n⏱️ Duration: %s\n📊 Concurrent: %d", 
+				scrapingMethod, duration, concurrentCount),
+			Timing: timing,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
 
-    response := ScrapeResponse{
-        Success: true,
-        Message: fmt.Sprintf(`📦 Amazon Product Found!
+	// Build success message with timing and method info
+	var productMessage string
+	if strings.Contains(scrapingMethod, "FastAPI") {
+		productMessage = fmt.Sprintf("📦 Amazon Product Found!\n\n📱 Name: %s\n💰 Price: %s\n🏷️ MRP: %s\n💸 Discount: %s\n⭐ Rating: %s\n📦 Availability: %s\n\n🔧 Method: %s ⚡\n⏱️ Duration: %s\n📊 Concurrent: %d requests\n🆔 ID: %s",
+			productInfo["title"], productInfo["price"], productInfo["mrp"], 
+			productInfo["discount"], productInfo["rating"], productInfo["availability"],
+			scrapingMethod, duration, concurrentCount, requestID)
+	} else {
+		productMessage = fmt.Sprintf("🛒 Flipkart Product Found!\n\n📱 Name: %s\n💰 Price: %s\n⭐ Rating: %s\n\n🔧 Method: %s\n⏱️ Duration: %s\n📊 Concurrent: %d requests\n🆔 ID: %s",
+			productInfo["name"], productInfo["price"], productInfo["rating"],
+			scrapingMethod, duration, concurrentCount, requestID)
+	}
 
-📱 Name: %s
-💰 Price: %s
-🏷️ MRP: %s
-💸 Discount: %s
-⭐ Rating: %s
-📦 Availability: %s
+	response := ScrapeResponse{
+		Success:     true,
+		Message:     productMessage,
+		ProductInfo: productInfo,
+		Debug: []string{
+			fmt.Sprintf("Method: %s", scrapingMethod),
+			fmt.Sprintf("Duration: %s", duration),
+			fmt.Sprintf("Concurrent requests: %d", concurrentCount),
+			fmt.Sprintf("Request ID: %s", requestID),
+		},
+		Timing: timing,
+	}
 
-🔧 Scraped with: Python requests (amazon.py)`, productInfo["title"], productInfo["price"], productInfo["mrp"], productInfo["discount"], productInfo["rating"], productInfo["availability"]),
-        ProductInfo: productInfo,
-        Debug: []string{"Amazon product scraped with Python requests"},
-    }
-
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(response)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
-func scrapeFlipkartViaGo(productURL string) (map[string]string, error) {
-    fmt.Println("🛒 Starting Flipkart scraping via Go script...")
-    
-    flipkartScript := "/data/data/com.termux/files/home/termux-scraper-service/flipkart.go"
-    cmd := exec.Command("go", "run", flipkartScript, productURL)
-    
-    output, err := cmd.Output()
-    if err != nil {
-        return nil, fmt.Errorf("Go script failed: %v", err)
-    }
-    
-    var result struct {
-        Success bool   `json:"success"`
-        Name    string `json:"name"`
-        Price   string `json:"price"`
-        Rating  string `json:"rating"`
-        Error   string `json:"error"`
-    }
-    
-    if err := json.Unmarshal(output, &result); err != nil {
-        return nil, fmt.Errorf("failed to parse Go output: %v, raw output: %s", err, string(output))
-    }
-    
-    if !result.Success {
-        return nil, fmt.Errorf("Go scraping failed: %s", result.Error)
-    }
-    
-    product := map[string]string{
-        "name":   result.Name,
-        "price":  result.Price,
-        "rating": result.Rating,
-    }
-    
-    fmt.Println("✅ Flipkart product extraction completed via Go!")
-    fmt.Printf("📦 Name: %s\n", product["name"])
-    fmt.Printf("💰 Price: %s\n", product["price"])
-    fmt.Printf("⭐ Rating: %s\n", product["rating"])
-    
-    return product, nil
+func scrapeFlipkartViaGo(productURL, requestID string) (map[string]string, error) {
+	fmt.Printf("🛒 [%s] Starting Flipkart scraping via Go ChromeDriver\n", requestID)
+
+	flipkartScript := "/data/data/com.termux/files/home/termux-scraper-service/flipkart.go"
+	cmd := exec.Command("go", "run", flipkartScript, productURL)
+
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("Go script failed: %v", err)
+	}
+
+	var result struct {
+		Success bool   `json:"success"`
+		Name    string `json:"name"`
+		Price   string `json:"price"`
+		Rating  string `json:"rating"`
+		Error   string `json:"error"`
+	}
+
+	if err := json.Unmarshal(output, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse Go output: %v", err)
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("Go scraping failed: %s", result.Error)
+	}
+
+	product := map[string]string{
+		"name":   result.Name,
+		"price":  result.Price,
+		"rating": result.Rating,
+	}
+
+	fmt.Printf("✅ [%s] Flipkart scraping completed via Go ChromeDriver\n", requestID)
+	return product, nil
 }
 
-func scrapeAmazonViaPython(productURL string) (map[string]string, error) {
-    fmt.Println("📦 Starting Amazon scraping via Python script...")
-    
-    pythonScript := "/data/data/com.termux/files/home/termux-scraper-service/amazon.py"
-    cmd := exec.Command("python3", pythonScript, productURL)
-    
-    output, err := cmd.Output()
-    if err != nil {
-        return nil, fmt.Errorf("Python script failed: %v", err)
-    }
-    
-    var result struct {
-        Success      bool   `json:"success"`
-        Title        string `json:"title"`
-        MRP          string `json:"mrp"`
-        Discount     string `json:"discount"`
-        Price        string `json:"price"`
-        Rating       string `json:"rating"`
-        Availability string `json:"availability"`
-        Error        string `json:"error"`
-    }
-    
-    if err := json.Unmarshal(output, &result); err != nil {
-        return nil, fmt.Errorf("failed to parse Python output: %v, raw output: %s", err, string(output))
-    }
-    
-    if !result.Success {
-        return nil, fmt.Errorf("Python scraping failed: %s", result.Error)
-    }
-    
-    product := map[string]string{
-        "title":        result.Title,
-        "mrp":          result.MRP,
-        "discount":     result.Discount,
-        "price":        result.Price,
-        "rating":       result.Rating,
-        "availability": result.Availability,
-    }
-    
-    fmt.Println("✅ Amazon product extraction completed via Python!")
-    fmt.Printf("📱 Title: %s\n", product["title"])
-    fmt.Printf("💰 Price: %s\n", product["price"])
-    fmt.Printf("🏷️  MRP: %s\n", product["mrp"])
-    fmt.Printf("💸 Discount: %s\n", product["discount"])
-    fmt.Printf("⭐ Rating: %s\n", product["rating"])
-    fmt.Printf("📦 Availability: %s\n", product["availability"])
-    
-    return product, nil
+func scrapeAmazonViaFastAPI(productURL, requestID string) (map[string]string, error) {
+	fmt.Printf("📦 [%s] Starting Amazon scraping via FastAPI\n", requestID)
+
+	payload := map[string]string{"url": productURL}
+	payloadJSON, _ := json.Marshal(payload)
+
+	resp, err := http.Post("http://localhost:8081/scrape", "application/json", strings.NewReader(string(payloadJSON)))
+	if err != nil {
+		return nil, fmt.Errorf("FastAPI request failed: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("FastAPI returned status %d, body: %s", resp.StatusCode, string(body))
+	}
+
+	var result struct {
+		Success      bool   `json:"success"`
+		Title        string `json:"title"`
+		MRP          string `json:"mrp"`
+		Discount     string `json:"discount"`
+		Price        string `json:"price"`
+		Rating       string `json:"rating"`
+		Availability string `json:"availability"`
+		Error        string `json:"error"`
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %v", err)
+	}
+
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %v", err)
+	}
+
+	if !result.Success {
+		return nil, fmt.Errorf("FastAPI scraping failed: %s", result.Error)
+	}
+
+	product := map[string]string{
+		"title":        result.Title,
+		"mrp":          result.MRP,
+		"discount":     result.Discount,
+		"price":        result.Price,
+		"rating":       result.Rating,
+		"availability": result.Availability,
+	}
+
+	fmt.Printf("✅ [%s] Amazon FastAPI scraping completed\n", requestID)
+	return product, nil
 }
