@@ -93,7 +93,8 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if strings.Contains(url, "flipkart.com") {
+    // Route to Flipkart scraper (no URL validation - trust worker.js)
+    if strings.Contains(url, "flipkart.com") || strings.Contains(url, "dl.flipkart.com") {
         fmt.Println("🛒 Flipkart URL detected - using flipkart.go...")
 
         productInfo, err := scrapeFlipkartViaGo(url)
@@ -129,27 +130,27 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    if strings.Contains(url, "amazon.") {
-        fmt.Println("📦 Amazon URL detected - using amazon.py...")
+    // Default to Amazon scraper for all other URLs (no validation - trust worker.js)
+    fmt.Println("📦 Amazon URL assumed - using amazon.py...")
 
-        productInfo, err := scrapeAmazonViaPython(url)
-        if err != nil {
-            fmt.Printf("❌ Amazon scraping failed: %v\n", err)
-            response := ScrapeResponse{
-                Success: false,
-                Error:   fmt.Sprintf("Amazon scraping failed: %v", err),
-                Message: "Could not extract product information",
-            }
-            w.Header().Set("Content-Type", "application/json")
-            json.NewEncoder(w).Encode(response)
-            return
-        }
-
-        fmt.Printf("✅ Amazon product scraped successfully: %s\n", productInfo["title"])
-
+    productInfo, err := scrapeAmazonViaPython(url)
+    if err != nil {
+        fmt.Printf("❌ Amazon scraping failed: %v\n", err)
         response := ScrapeResponse{
-            Success: true,
-            Message: fmt.Sprintf(`📦 Amazon Product Found!
+            Success: false,
+            Error:   fmt.Sprintf("Amazon scraping failed: %v", err),
+            Message: "Could not extract product information",
+        }
+        w.Header().Set("Content-Type", "application/json")
+        json.NewEncoder(w).Encode(response)
+        return
+    }
+
+    fmt.Printf("✅ Amazon product scraped successfully: %s\n", productInfo["title"])
+
+    response := ScrapeResponse{
+        Success: true,
+        Message: fmt.Sprintf(`📦 Amazon Product Found!
 
 📱 Name: %s
 💰 Price: %s
@@ -159,22 +160,8 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 📦 Availability: %s
 
 🔧 Scraped with: Python requests (amazon.py)`, productInfo["title"], productInfo["price"], productInfo["mrp"], productInfo["discount"], productInfo["rating"], productInfo["availability"]),
-            ProductInfo: productInfo,
-            Debug: []string{"Amazon product scraped with Python requests"},
-        }
-
-        w.Header().Set("Content-Type", "application/json")
-        json.NewEncoder(w).Encode(response)
-        return
-    }
-
-    fmt.Printf("❓ Unknown command or unsupported URL: %s\n", url)
-
-    response := ScrapeResponse{
-        Success: false,
-        Error:   "Send a Flipkart or Amazon product URL or 'go' command to test the service",
-        Message: fmt.Sprintf("Optimal Hybrid Scraper Service v2.0 - Received: %s", command),
-        Debug:   []string{fmt.Sprintf("Service running at %s", time.Now().Format("2006-01-02 15:04:05 IST"))},
+        ProductInfo: productInfo,
+        Debug: []string{"Amazon product scraped with Python requests"},
     }
 
     w.Header().Set("Content-Type", "application/json")
@@ -184,19 +171,14 @@ func handleScrape(w http.ResponseWriter, r *http.Request) {
 func scrapeFlipkartViaGo(productURL string) (map[string]string, error) {
     fmt.Println("🛒 Starting Flipkart scraping via Go script...")
     
-    // Path to Go script (run it)
     flipkartScript := "/data/data/com.termux/files/home/termux-scraper-service/flipkart.go"
-    
-    // Call Go script via exec
     cmd := exec.Command("go", "run", flipkartScript, productURL)
     
-    // ✅ FIXED: Use Output() instead of CombinedOutput() to get only stdout (clean JSON)
     output, err := cmd.Output()
     if err != nil {
         return nil, fmt.Errorf("Go script failed: %v", err)
     }
     
-    // Parse JSON output from Go script
     var result struct {
         Success bool   `json:"success"`
         Name    string `json:"name"`
@@ -213,7 +195,6 @@ func scrapeFlipkartViaGo(productURL string) (map[string]string, error) {
         return nil, fmt.Errorf("Go scraping failed: %s", result.Error)
     }
     
-    // Convert to map format expected by your system
     product := map[string]string{
         "name":   result.Name,
         "price":  result.Price,
@@ -231,19 +212,14 @@ func scrapeFlipkartViaGo(productURL string) (map[string]string, error) {
 func scrapeAmazonViaPython(productURL string) (map[string]string, error) {
     fmt.Println("📦 Starting Amazon scraping via Python script...")
     
-    // Path to Python script
     pythonScript := "/data/data/com.termux/files/home/termux-scraper-service/amazon.py"
-    
-    // Call Python script via exec
     cmd := exec.Command("python3", pythonScript, productURL)
     
-    // ✅ FIXED: Use Output() instead of CombinedOutput() to get only stdout (clean JSON)
     output, err := cmd.Output()
     if err != nil {
         return nil, fmt.Errorf("Python script failed: %v", err)
     }
     
-    // Parse JSON output from Python script
     var result struct {
         Success      bool   `json:"success"`
         Title        string `json:"title"`
@@ -263,7 +239,6 @@ func scrapeAmazonViaPython(productURL string) (map[string]string, error) {
         return nil, fmt.Errorf("Python scraping failed: %s", result.Error)
     }
     
-    // Convert to map format expected by your system
     product := map[string]string{
         "title":        result.Title,
         "mrp":          result.MRP,
