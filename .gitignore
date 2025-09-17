@@ -1,0 +1,25 @@
+# Logs and runtime files
+logs/
+*.log
+nohup.out
+*.pid
+.fastapi.pid
+.go_service.pid
+
+# Dependencies and cache
+__pycache__/
+*.pyc
+node_modules/
+.cache/
+
+# Build artifacts
+scraper_service
+*.exe
+
+# Environment files
+.env
+.env.local
+
+# Temporary files
+*.tmp
+temp/
